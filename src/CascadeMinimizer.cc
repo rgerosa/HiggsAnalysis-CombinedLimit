@@ -90,7 +90,7 @@ bool CascadeMinimizer::improveOnce(int verbose)
 
 
 bool CascadeMinimizer::minos(const RooArgSet & params , int verbose ) {
-
+   
    minimizer_->setPrintLevel(verbose-1); // for debugging
    std::string myType(ROOT::Math::MinimizerOptions::DefaultMinimizerType());
    std::string myAlgo(ROOT::Math::MinimizerOptions::DefaultMinimizerAlgo());
@@ -128,7 +128,7 @@ are freely floating. We should cut them down to find which ones are
 
 */
    // Do A reasonable fit if something changed before 
-   if ( fabs(minimumNLL - nll_.getVal()) < discreteMinTol_ ) improve(verbose,cascade);
+   if ( fabs(minimumNLL - nll_.getVal()) > discreteMinTol_ ) improve(verbose,cascade);
 
    RooArgSet nuisances = CascadeMinimizerGlobalConfigs::O().nuisanceParameters;
    RooArgSet poi = CascadeMinimizerGlobalConfigs::O().parametersOfInterest;
@@ -160,9 +160,11 @@ are freely floating. We should cut them down to find which ones are
    if (simnll) simnll->clearZeroPoint();
 
    utils::setAllConstant(frozen,false);
-   minimizer_.reset(new RooMinimizerOpt(nll_));
 
-   if (discretesHaveChanged) improve(verbose, cascade); 
+   if (discretesHaveChanged) { 
+        minimizer_.reset(new RooMinimizerOpt(nll_));
+   	improve(verbose, cascade); 
+   }
    minimumNLL = nll_.getVal();
    return ret;
 }
@@ -242,8 +244,10 @@ bool CascadeMinimizer::minimize(int verbose, bool cascade)
     bool ret = true;
 
     if (runShortCombinations) {
-      double minimumNLL = 10;
-      double previousNLL = 1;
+      // Initial fit under current index values
+      improve(verbose, cascade);
+      double minimumNLL  = 10+nll_.getVal();
+      double previousNLL = nll_.getVal();
       int maxIterations = 15; int iterationCounter=0;
       for (;iterationCounter<maxIterations;iterationCounter++){
         iterativeMinimize(minimumNLL,verbose,cascade);
@@ -253,7 +257,7 @@ bool CascadeMinimizer::minimize(int verbose, bool cascade)
 
     } else {
 
-      double minimumNLL = 10;
+      double minimumNLL = 10+nll_.getVal();
       std::vector<std::vector<bool>> contIndex;
       multipleMinimize(reallyCleanParameters,ret,minimumNLL,verbose,cascade,0,contIndex);
  
