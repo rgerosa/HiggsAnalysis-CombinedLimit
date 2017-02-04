@@ -170,7 +170,7 @@ void Combine::applyOptions(const boost::program_options::variables_map &vm) {
   }
   bypassFrequentistFit_ = vm.count("bypassFrequentistFit");
   overrideSnapshotMass_ = vm.count("overrideSnapshotMass");
-  mass_ = vm["mass"].as<float>();
+  mass_ = vm["mass"].as<double>();
   saveToys_ = vm.count("saveToys");
   validateModel_ = vm.count("validateModel");
   const std::string &method = vm["method"].as<std::string>();
