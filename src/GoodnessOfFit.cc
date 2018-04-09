@@ -120,6 +120,12 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
   // factorize away constraints anyway
   RooArgList constraints;
   RooAbsPdf *obsOnlyPdf = utils::factorizePdf(*mc_s->GetObservables(), *pdf_nominal, constraints);
+
+  // make a list of masking variables with the current value                                                                                                                                           
+  std::vector<std::pair<std::string,int> > mask_bit;
+  RooArgList paramslist   = RooArgList(*(pdf_nominal->getParameters(data)));
+  RooArgList channelMasks;
+  
   // case 1:
   RooSimultaneous *sim = dynamic_cast<RooSimultaneous *>(obsOnlyPdf);
   if (sim) {
@@ -128,11 +134,20 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
       int nbins = cat->numBins((const char *)0);
       RooArgSet newPdfs;
       TString satname = TString::Format("%s_saturated", sim->GetName());
-      RooSimultaneous *satsim = (typeid(*sim) == typeid(RooSimultaneousOpt)) ? new RooSimultaneousOpt(satname, "", *cat) : new RooSimultaneous(satname, "", *cat); 
+
+      RooSimultaneousOpt* satsim = new RooSimultaneousOpt(satname, "", *cat);
       for (int ic = 0, nc = nbins; ic < nc; ++ic) {
           cat->setBin(ic);
           RooAbsPdf *pdfi = sim->getPdf(cat->getLabel());
           if (pdfi == 0) continue;
+
+	  // store for each category the mask bit if defined                                                                                                                                       
+	  for(int iparam = 0; iparam < paramslist.getSize(); iparam++){
+	    if(TString(paramslist.at(iparam)->GetName()) == TString::Format("mask_%s",cat->getLabel())){
+	      mask_bit.push_back(std::pair<std::string,int>(paramslist.at(iparam)->GetName(), ((RooRealVar*) paramslist.at(iparam))->getVal()));
+	    }
+	  }
+
           RooAbsData *datai = (RooAbsData *) datasets->FindObject(cat->getLabel());
           if (datai == 0) throw std::runtime_error(std::string("Error: missing dataset for category label ")+cat->getLabel());
           std::unique_ptr<RooArgSet> data_observables(pdfi->getObservables(datai));
@@ -148,6 +163,13 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
           satsim->addPdf(*saturatedPdfi, cat->getLabel());
           satsim->addOwnedComponents(RooArgSet(*saturatedPdfi));
       }
+
+      if(mask_bit.size()!= 0) { // propagate the mask-bits to the RooSimultaneousPdf
+	for(auto maskterm : mask_bit)
+	  channelMasks.add(*paramslist.find(maskterm.first.c_str()));
+	satsim->addChannelMasks(channelMasks);
+      }
+
       saturated.reset(satsim);
   } else {
       RooAbsPdf *saturatedPdfi = makeSaturatedPdf(data);
@@ -161,13 +183,13 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
   }
 
   CloseCoutSentry sentry(verbose < 2);
-
+ 
   const RooCmdArg &constrainCmdArg = withSystematics  ? RooFit::Constrain(*mc_s->GetNuisanceParameters()) : RooCmdArg();
   std::auto_ptr<RooAbsReal> nominal_nll(pdf_nominal->createNLL(data, constrainCmdArg));
   std::auto_ptr<RooAbsReal> saturated_nll(saturated->createNLL(data, constrainCmdArg));
 
   CascadeMinimizer minimn(*nominal_nll, CascadeMinimizer::Unconstrained);
- // minimn.setStrategy(minimizerStrategy_);
+  // minimn.setStrategy(minimizerStrategy_);
   minimn.minimize(verbose-2);
   // This test is a special case where we are comparing the likelihoods of two
   // different models and so we can't re-zero the NLL with respect to the
@@ -175,8 +197,14 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
   if (dynamic_cast<cacheutils::CachingSimNLL*>(nominal_nll.get())) {
     static_cast<cacheutils::CachingSimNLL*>(nominal_nll.get())->clearConstantZeroPoint();
   }
+  
+  for(auto entry : mask_bit) // reset all masking bits to 0 when evaluating the Likelihood
+    ((RooRealVar*) channelMasks.find(entry.first.c_str()))->setVal(0);
   double nll_nominal = nominal_nll->getVal();
 
+  // restore the original mask-bit values                                                                                                                                                          
+  for(auto entry : mask_bit)
+    ((RooRealVar*) channelMasks.find(entry.first.c_str()))->setVal(entry.second);
 
   CascadeMinimizer minims(*saturated_nll, CascadeMinimizer::Unconstrained);
   //minims.setStrategy(minimizerStrategy_);
@@ -184,7 +212,15 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
   if (dynamic_cast<cacheutils::CachingSimNLL*>(saturated_nll.get())) {
     static_cast<cacheutils::CachingSimNLL*>(saturated_nll.get())->clearConstantZeroPoint();
   }
+
+  // set all mask bits to 0 to evaluate saturated chi2 likelihood
+  for(auto entry : mask_bit)
+    ((RooRealVar*) channelMasks.find(entry.first.c_str()))->setVal(0);
   double nll_saturated = saturated_nll->getVal();
+
+  // restore values                                                                                                                                                                                    
+  for(auto entry : mask_bit)
+    ((RooRealVar*) channelMasks.find(entry.first.c_str()))->setVal(entry.second);
 
   sentry.clear();
 
@@ -194,7 +230,7 @@ bool GoodnessOfFit::runSaturatedModel(RooWorkspace *w, RooStats::ModelConfig *mc
 
   if (fabs(nll_nominal) > 1e10 || fabs(nll_saturated) > 1e10) return false;
   limit = 2*(nll_nominal-nll_saturated);
-
+  
   std::cout << "\n --- GoodnessOfFit --- " << std::endl;
   std::cout << "Best fit test statistic: " << limit << std::endl;
   return true;
