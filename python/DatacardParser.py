@@ -18,6 +18,7 @@ def addDatacardParserOptions(parser):
     parser.add_option("--poisson",  dest="poisson",  default=0,  type="int",    help="If set to a positive number, binned datasets wih more than this number of entries will be generated using poissonians")
     parser.add_option("--default-morphing",  dest="defMorph", type="string", default="shape", help="Default template morphing algorithm (to be used when the datacard has just 'shape')")
     parser.add_option("--no-b-only","--for-fits",    dest="noBOnly", default=False, action="store_true", help="Do not save the background-only pdf (saves time)")
+    parser.add_option("--no-wrappers", dest="noHistFuncWrappers", default=False, action="store_true", help="Do not create and save the CMSHistFuncWrapper objects for autoMCStats-based models (saves time)")
     parser.add_option("--no-optimize-pdfs",    dest="noOptimizePdf", default=False, action="store_true", help="Do not save the RooSimultaneous as RooSimultaneousOpt and Gaussian constraints as SimpleGaussianConstraint")
     parser.add_option("--optimize-simpdf-constraints",    dest="moreOptimizeSimPdf", default="none", type="string", help="Handling of constraints in simultaneous pdf: 'none' = add all constraints on all channels (default); 'lhchcg' = add constraints on only the first channel; 'cms' = add constraints to the RooSimultaneousOpt.")
     #parser.add_option("--use-HistPdf",  dest="useHistPdf", type="string", default="always", help="Use RooHistPdf for TH1s: 'always' (default), 'never', 'when-constant' (i.e. not when doing template morphing)")
@@ -198,6 +199,12 @@ def parseCard(file, options):
                 if len(args) <= 1: raise RuntimeError, "Uncertainties of type 'param' must have at least two arguments (mean and sigma)"
                 ret.systs.append([lsyst,nofloat,pdf,args,[]])
                 continue
+            elif pdf == "constraint":
+                args = f[2:]
+                if len(args) <= 2: raise RuntimeError, "Uncertainties of type 'constraint' must have at least three arguments variable name, mean and sigma"
+                nofloat = True
+                ret.systs.append([lsyst,nofloat,pdf,args,[]])
+                continue
             elif pdf == "flatParam":
                 ret.flatParamNuisances[lsyst] = True
                 #for flat parametric uncertainties, code already does the right thing as long as they are non-constant RooRealVars linked to the model
@@ -314,7 +321,7 @@ def parseCard(file, options):
     syst2 = []
     for lsyst,nofloat,pdf,args,errline in ret.systs:
         nonNullEntries = 0
-        if pdf == "param" or pdf=="discrete" or pdf=="rateParam": # this doesn't have an errline
+        if pdf == "param" or pdf=="discrete" or pdf=="rateParam" or pdf == "constraint": # this doesn't have an errline
             syst2.append((lsyst,nofloat,pdf,args,errline))
             continue
         for (b,p,s) in ret.keyline:

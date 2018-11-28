@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import re
-from sys import argv
+from sys import argv,exit
 import os.path
 from pprint import pprint
 from optparse import OptionParser
@@ -36,6 +36,7 @@ obsline = []; obskeyline = [] ;
 keyline = []; expline = []; systlines = {}
 signals = []; backgrounds = []; shapeLines = []
 paramSysts = {}; flatParamNuisances = {}; discreteNuisances = {}; groups = {}; rateParams = {}; rateParamsOrder = set();
+constraintSysts = {};
 extArgs = {}; binParFlags = {}
 nuisanceEdits = [];
 
@@ -78,6 +79,12 @@ for ich,fname in enumerate(args):
                if paramSysts[lsyst] != pdfargs: raise RuntimeError, "Parameter uncerainty %s mismatch between cards." % lsyst
             else:
                 paramSysts[lsyst] = pdfargs
+            continue
+        if pdf == "constraint":
+            if constraintSysts.has_key(lsyst):
+               if constraintSysts[lsyst] != pdfargs: raise RuntimeError, "Parameter uncerainty %s mismatch between cards." % lsyst
+            else:
+                constraintSysts[lsyst] = pdfargs
             continue
         for b in DC.bins:
             bout = label if singlebin else label+b
@@ -182,9 +189,9 @@ for ich,fname in enumerate(args):
 
         tmp_chan = editline[2]
         tmp_proc = editline[1]
-
         if tmp_chan == "*": # all channels
           tmp_chan = "%s(%s)"%(label,"|".join(c for c in DC.bins)) if len (DC.bins)>1 else label
+	else: tmp_chan = label+tmp_chan
         if tmp_proc == "*":
           tmp_proc = "(%s)"%("|".join(p for p in DC.processes))
         nuisanceEdits.append("%s %s %s %s"%(editline[0],tmp_proc,tmp_chan," ".join(editline[3])))
@@ -200,7 +207,7 @@ for (b,p,s) in keyline:
 print "Combination of", "  ".join(args)
 print "imax %d number of bins" % len(bins)
 print "jmax %d number of processes minus 1" % (len(signals) + len(backgrounds) - 1)
-print "kmax %d number of nuisance parameters" % (len(systlines) + len(paramSysts))
+print "kmax %d number of nuisance parameters" % (len(systlines) + len(paramSysts) + len(constraintSysts))
 print "-" * 130
 
 if shapeLines:
@@ -254,6 +261,8 @@ for name in sysnamesSorted:
     print hfmt % ("%-21s   %s  %s" % (name, pdf, " ".join(pdfargs))), "  ".join([cfmt % x for x in systline])
 for (pname, pargs) in paramSysts.items():
     print "%-12s  param  %s" %  (pname, " ".join(pargs))
+for (pname, pargs) in constraintSysts.items():
+    print "%-12s  constraint  %s" %  (pname, " ".join(pargs))
 
 for pname in flatParamNuisances.iterkeys():
     print "%-12s  flatParam" % pname

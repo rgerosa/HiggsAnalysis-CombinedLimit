@@ -173,17 +173,19 @@ class ModelBuilder(ModelBuilderBase):
 	        param_range = self.DC.extArgs[rp][-1]
 	        param_val   = self.DC.extArgs[rp][-2]
 	    	if "[" not in param_range:
-			  raise RuntimeError, "Expected range arguments [min,max] for extArg %s "%(rp)
+			  raise RuntimeError, "Expected range arguments [min,max] or [const] for extArg %s "%(rp)
 	  	param_range = param_range.strip('[]')
 
 	      removeRange = False
-	      if param_range == "":
-	      	param_range = "0,1"
+	      setConst= (param_range== "const")
+	      if param_range == "" or "const":
+	        param_range = "0,1"
 		removeRange=True
 
 	      self.doVar("%s[%s,%s]"%(rp,float(param_val),param_range))
 	      if removeRange: self.out.var(rp).removeRange()
 	      self.out.var(rp).setConstant(False)
+	      if setConst: self.out.var(rp).setConstant(True)
 	      self.out.var(rp).setAttribute("flatParam")
 
     def doRateParams(self):
@@ -203,14 +205,14 @@ class ModelBuilder(ModelBuilderBase):
 	        wstmp = open_files[(fin,wsn)]
 	        if not wstmp.arg(argu):
 	         raise RuntimeError, "No parameter '%s' found for rateParam in workspace %s from file %s"%(argu,wsn,fin)
-	        self.out._import(wstmp.arg(argu))
+	        self.out._import(wstmp.arg(argu),ROOT.RooFit.RecycleConflictNodes())
 	  else:
 	    try:
 	      fitmp = ROOT.TFile.Open(fin)
 	      wstmp = fitmp.Get(wsn)
 	      if not wstmp.arg(argu):
 	       raise RuntimeError, "No parameter '%s' found for rateParam in workspace %s from file %s"%(argu,wsn,fin)
-	      self.out._import(wstmp.arg(argu))
+	      self.out._import(wstmp.arg(argu),ROOT.RooFit.RecycleConflictNodes())
 	      open_files[(fin,wsn)] = wstmp
 	      #fitmp.Close()
 	    except:
@@ -449,17 +451,69 @@ class ModelBuilder(ModelBuilderBase):
                 #if self.options.optimizeBoundNuisances: self.out.var(n).setAttribute("optimizeBounds")
 	    elif pdf == "extArg" : continue
 
+            elif pdf == "constraint":
+
+                mean  = float(args[0])
+                sigma = float(args[1])
+                meanStr  = args[0]
+                sigmaStr = args[1]
+
+                split = args[2].split(":")
+                importargs = []
+                if "RecycleConflictNodes" in split:
+                    split.remove("RecycleConflictNodes")
+                    importargs.append(ROOT.RooFit.RecycleConflictNodes())
+                fin, wsn = split
+
+                open_files = {};
+                if (fin,wsn) in open_files:
+                    wstmp = open_files[(fin,wsn)]
+                    if not wstmp.arg(n):
+                        raise RuntimeError, "No parameter '%s' found for constraint in workspace %s from file %s"%(n,wsn,fin)
+                    
+                    formula = wstmp.function(n)
+                    if formula.InheritsFrom("RooFormulaVar"):
+                        for keys in self.norm_rename_map.keys():
+                            if formula.getParameter(keys):
+                                param = formula.getParameter(keys);
+                            param.SetName(self.norm_rename_map[keys]);                            
+                    self.out._import(wstmp.arg(n), *importargs)
+                else:
+                    try:
+                        fitmp = ROOT.TFile.Open(fin)
+                        wstmp = fitmp.Get(wsn)
+                        if not wstmp.arg(n):
+                            raise RuntimeError, "No parameter '%s' found for constraint in workspace %s from file %s"%(n,wsn,fin)   
+
+                        formula = wstmp.function(n)
+                        if formula.InheritsFrom("RooFormulaVar"):
+                            for keys in self.norm_rename_map.keys():
+                                if formula.getParameter(keys):
+                                    param = formula.getParameter(keys);
+                                    param.SetName(self.norm_rename_map[keys]);
+
+                        self.out._import(wstmp.arg(n), *importargs)
+                        open_files[(fin,wsn)] = wstmp
+                    except:
+                        raise RuntimeError, "No File '%s' found for constraint, or workspace '%s' not in file "%(fin,wsn)
+
+                ### take the formula and rename the normalization                                    
+                self.doObj("%s_Pdf" % n, "SimpleGaussianConstraint", "%s, %s_In[%s,-5,5], %s" % (n,n,meanStr,sigmaStr),True)
+                globalobs.append("%s_In" % n)
+                self.out.var("%s_In" % n).setConstant(True)
+     
             else: raise RuntimeError, "Unsupported pdf %s" % pdf
             if nofloat:
-              self.out.var(n).setAttribute("globalConstrained",True)
-            #self.out.var(n).Print('V')
+                if pdf != "constraint":
+                    self.out.var(n).setAttribute("globalConstrained",True)
             if n in self.DC.frozenNuisances:
                 self.out.var(n).setConstant(True)
         if self.options.bin:
             nuisPdfs = ROOT.RooArgList()
             nuisVars = ROOT.RooArgSet()
             for (n,nf,p,a,e) in self.DC.systs:
-                nuisVars.add(self.out.var(n))
+                if p != "constraint":
+                    nuisVars.add(self.out.var(n))
                 nuisPdfs.add(self.out.pdf(n+"_Pdf"))
             self.out.defineSet("nuisances", nuisVars)
             self.out.nuisPdf = ROOT.RooProdPdf("nuisancePdf", "nuisancePdf", nuisPdfs)
@@ -547,6 +601,7 @@ class ModelBuilder(ModelBuilderBase):
                 for (n,nofloat,pdf,args,errline) in self.DC.systs:
                     if pdf == "param":continue
                     if pdf == "rateParam":continue
+                    if pdf == "constraint":continue
                     if not errline[b].has_key(p): continue
                     if errline[b][p] == 0.0: continue
                     if pdf.startswith("shape") and pdf.endswith("?"): # might be a lnN in disguise

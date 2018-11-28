@@ -197,6 +197,14 @@
 	<class name="RooParametricHist" />
 	<class name="RooParametricShapeBinPdf" />
 	<class name="RooMorphingPdf" />
+	<class name="RooModZPdf" />
+	<class name="RooExpPowPdf" />
+	<class name="RooExpBWPdf" />
+	<class name="RooPowerLawPdf" />
+	<class name="RooSumTwoExpPdf" />
+	<class name="RooTwoPowerLawPdf" />
+	<class name="RooAKeysPdf" />
+	<class name="RooPdfIntegral" />
         <function name="function th1fmorph" />
   <class name="CMSHistFunc" />
   <class name="CMSHistErrorPropagator" />
