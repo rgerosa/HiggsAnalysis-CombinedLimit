@@ -82,6 +82,10 @@ void RooMultiPdf::setCorrectionFactor(double penal){
   cFactor=penal;
 }
 //_____________________________________________________________________________
+double RooMultiPdf::getCorrectionFactor() const{
+  return cFactor;
+}
+//_____________________________________________________________________________
 double RooMultiPdf::getCorrection() const {
 
   double val = ((RooAbsReal*)corr.at(x))->getVal(); 

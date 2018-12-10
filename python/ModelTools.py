@@ -465,37 +465,43 @@ class ModelBuilder(ModelBuilderBase):
                     importargs.append(ROOT.RooFit.RecycleConflictNodes())
                 fin, wsn = split
 
-                open_files = {};
-                if (fin,wsn) in open_files:
+                open_files = {};            
+                self.constraint_terms.append(n);
+
+                #######
+                if (fin,wsn) in open_files:                    
                     wstmp = open_files[(fin,wsn)]
                     if not wstmp.arg(n):
                         raise RuntimeError, "No parameter '%s' found for constraint in workspace %s from file %s"%(n,wsn,fin)
-                    
+
                     formula = wstmp.function(n)
                     if formula.InheritsFrom("RooFormulaVar"):
-                        for keys in self.norm_rename_map.keys():
-                            if formula.getParameter(keys):
-                                param = formula.getParameter(keys);
-                            param.SetName(self.norm_rename_map[keys]);                            
-                    self.out._import(wstmp.arg(n), *importargs)
-                else:
-                    try:
-                        fitmp = ROOT.TFile.Open(fin)
-                        wstmp = fitmp.Get(wsn)
-                        if not wstmp.arg(n):
-                            raise RuntimeError, "No parameter '%s' found for constraint in workspace %s from file %s"%(n,wsn,fin)   
-
-                        formula = wstmp.function(n)
-                        if formula.InheritsFrom("RooFormulaVar"):
+                        flist = ROOT.RooArgList(formula.getComponents())
+                        for fentry in range(0,flist.getSize()):
+                            if not flist[fentry].InheritsFrom("RooFormulaVar"): continue;
                             for keys in self.norm_rename_map.keys():
-                                if formula.getParameter(keys):
-                                    param = formula.getParameter(keys);
+                                if flist[fentry].getParameter(keys):
+                                    param = flist[fentry].getParameter(keys);
                                     param.SetName(self.norm_rename_map[keys]);
-
                         self.out._import(wstmp.arg(n), *importargs)
-                        open_files[(fin,wsn)] = wstmp
-                    except:
-                        raise RuntimeError, "No File '%s' found for constraint, or workspace '%s' not in file "%(fin,wsn)
+
+                else:
+                    fitmp = ROOT.TFile.Open(fin)
+                    wstmp = fitmp.Get(wsn)
+                    if not wstmp.arg(n):
+                        raise RuntimeError, "No parameter '%s' found for constraint in workspace %s from file %s"%(n,wsn,fin)   
+
+                    formula = wstmp.function(n)
+                    if formula.InheritsFrom("RooFormulaVar"):
+                        flist = ROOT.RooArgList(formula.getComponents())
+                        for fentry in range(0,flist.getSize()):
+                            if not flist[fentry].InheritsFrom("RooFormulaVar"): continue;
+                            for keys in self.norm_rename_map.keys():
+                                if flist[fentry].getParameter(keys):
+                                    param = flist[fentry].getParameter(keys);
+                                    param.SetName(self.norm_rename_map[keys]);
+                        self.out._import(wstmp.arg(n), *importargs)
+                    open_files[(fin,wsn)] = wstmp
 
                 ### take the formula and rename the normalization                                    
                 self.doObj("%s_Pdf" % n, "SimpleGaussianConstraint", "%s, %s_In[%s,-5,5], %s" % (n,n,meanStr,sigmaStr),True)
@@ -644,6 +650,11 @@ class ModelBuilder(ModelBuilderBase):
                     for kappa, thetaName in logNorms: procNorm.addLogNormal(kappa, self.out.function(thetaName))
                     for kappaLo, kappaHi, thetaName in alogNorms: procNorm.addAsymmLogNormal(kappaLo, kappaHi, self.out.function(thetaName))
                     for factorName in factors:
+                        vetoParam = False;
+                        for constraint in self.constraint_terms:
+                            if self.out.function(constraint).dependsOn(self.out.obj(factorName)):
+                                vetoParam = True;
+                        if vetoParam: continue;
 		    	if self.out.function(factorName): procNorm.addOtherFactor(self.out.function(factorName))
 			else: procNorm.addOtherFactor(self.out.var(factorName))
                     self.out._import(procNorm)

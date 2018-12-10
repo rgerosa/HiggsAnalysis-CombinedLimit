@@ -25,6 +25,7 @@ class ShapeBuilder(ModelBuilder):
     	self.wsp = None
     	self.extraImports = []
 	self.norm_rename_map = {}
+        self.constraint_terms = [];
     ## ------------------------------------------
     ## -------- ModelBuilder interface ----------
     ## ------------------------------------------

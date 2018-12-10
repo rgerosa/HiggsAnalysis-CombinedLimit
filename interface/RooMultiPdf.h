@@ -40,25 +40,9 @@ public:
   virtual TObject* clone(const char* newname) const { return new RooMultiPdf(*this,newname); }
   inline virtual ~RooMultiPdf() { }
 
-/*
-  RooAbsReal* createNLL(RooAbsData& data, const RooCmdArg& arg1=RooCmdArg::none(),  const RooCmdArg& arg2=RooCmdArg::none(),  
-                                const RooCmdArg& arg3=RooCmdArg::none(),
-const RooCmdArg& arg4=RooCmdArg::none(), const RooCmdArg&
-arg5=RooCmdArg::none(),  
-                                 const RooCmdArg& arg6=RooCmdArg::none(),
-const RooCmdArg& arg7=RooCmdArg::none(), const RooCmdArg&
-arg8=RooCmdArg::none());
-
-  RooAbsReal* createNLL(RooAbsData &data,const RooLinkedList&);
-*/
-
-//}
-/*
-  Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=0) const ;
-  Double_t analyticalIntegral(Int_t code, const char* rangeName=0) const ;
-*/
   bool checkIndexDirty() const;
   double getCorrection() const;
+  double getCorrectionFactor() const;
   RooAbsPdf *getCurrentPdf() const;
   int getNumPdfs() const {return nPdfs;};
   void setCorrectionFactor(PenatlyScheme penal);
@@ -72,9 +56,6 @@ protected:
   RooListProxy c;
   RooListProxy corr;
   RooCategoryProxy x;
-  //RooFormulaVar *cval;
- // RooRealProxy nllcorr;
-//  RooAbsCatgeory *fIndex_r;
 
   int fIndex; // sigh, there should be a better way than this
   int nPdfs;
@@ -82,7 +63,6 @@ protected:
 
   Double_t evaluate() const;
   Double_t getLogVal(const RooArgSet *set = 0) const;
-  //std::string createCorrectionString();	// should only do this once really
   double cFactor;
 
 private:

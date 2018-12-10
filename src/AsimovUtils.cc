@@ -128,10 +128,14 @@ RooAbsData *asimovutils::asimovDatasetWithFit(RooStats::ModelConfig *mc, RooAbsD
 	TString name (rrv.GetName());
 	if(name.Contains("_In")){
 	  name.ReplaceAll("_In","");
-	  if(dynamic_cast<RooFormulaVar*>(cterm->getComponents()->find(name)) != NULL) {
+	  if(dynamic_cast<RooFormulaVar*>(cterm->getComponents()->find(name)) != NULL){
 	    badConstraint = false; 
-	    match = dynamic_cast<RooFormulaVar*>(cterm->getComponents()->find(name));
+	    match = (RooRealVar*) (cterm->getComponents()->find(name));
 	  }		  
+	  else if((RooProduct*)(cterm->getComponents()->find(name)) != NULL){
+	    badConstraint = false;
+            match = (RooRealVar*)(cterm->getComponents()->find(name));       
+	  }
 	  else{
 	    throw std::runtime_error(Form("AsimovUtils: constraint term %s has multiple floating params", cterm->GetName()));                	    
 	  }
