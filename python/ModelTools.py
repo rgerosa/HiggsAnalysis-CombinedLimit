@@ -107,6 +107,7 @@ class ModelBuilder(ModelBuilderBase):
         self.physics = physicsModel
         self.physics.setModelBuilder(self)
     def doModel(self):
+
         self.doObservables()
         self.physics.doParametersOfInterest()
 
@@ -126,6 +127,7 @@ class ModelBuilder(ModelBuilderBase):
         self.doNuisancesGroups() # this needs to be called after both doNuisances and doIndividualModels
         self.doCombination()
 	self.runPostProcesses()
+
         self.physics.done()
         if self.options.bin:
             self.doModelConfigs()
@@ -133,7 +135,6 @@ class ModelBuilder(ModelBuilderBase):
             if self.options.verbose > 2:
                 self.out.pdf("model_s").graphVizTree(self.options.out+".dot", "\\n")
                 print "Wrote GraphVizTree of model_s to ",self.options.out+".dot"
-
 
     def runPostProcesses(self):
       for n in self.DC.frozenNuisances:

@@ -205,6 +205,7 @@
 	<class name="RooTwoPowerLawPdf" />
 	<class name="RooAKeysPdf" />
 	<class name="RooPdfIntegral" />
+	<class name="RooAbsPdfWithUncertainties" />
         <function name="function th1fmorph" />
   <class name="CMSHistFunc" />
   <class name="CMSHistErrorPropagator" />

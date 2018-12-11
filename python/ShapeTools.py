@@ -390,6 +390,12 @@ class ShapeBuilder(ModelBuilder):
                 raise RuntimeError, "There's more than once choice of observables: %s\n" % str(shapeObs.keys())
             self.out.binVars = shapeObs.values()[0]
             self.out._import(self.out.binVars)
+
+        ### make sure all have been renamed correctly
+        for key in self.norm_rename_map.keys():
+            if self.out.arg(key):
+                self.out.arg(key).SetName(self.norm_rename_map[key])
+                
     def doCombinedDataset(self):
         if len(self.DC.bins) == 1 and self.options.forceNonSimPdf:
             data = self.getData(self.DC.bins[0],self.options.dataname).Clone(self.options.dataname)
@@ -415,7 +421,7 @@ class ShapeBuilder(ModelBuilder):
 	"""
         combiner = ROOT.CombDataSetFactory(self.out.obs, self.out.binCat)
         for b in self.DC.bins: 
-		combiner.addSetAny(b, self.getData(b,self.options.dataname))
+            combiner.addSetAny(b, self.getData(b,self.options.dataname))
         self.out.data_obs = combiner.doneUnbinned(self.options.dataname,self.options.dataname)
         self.out._import(self.out.data_obs)
 	if self.options.verbose>2:
@@ -476,21 +482,22 @@ class ShapeBuilder(ModelBuilder):
                     if allowNoSyst: return None
                     raise RuntimeError, "Object %s in workspace %s in file %s does not exist or it's neither a data nor a pdf" % (oname, wname, finalNames[0])
                 # Fix the fact that more than one entry can refer to the same object
-                ret = ret.Clone()
+                ret = ret.Clone()                
                 ret.SetName("shape%s_%s_%s%s" % (postFix,process,channel, "_"+syst if syst else ""))
                 _cache[(channel,process,syst)] = ret
                 if not syst:
                   normname = "%s_norm" % (oname)
                   norm = self.wsp.arg(normname)
 		  if norm==None: 
-			if normname in self.norm_rename_map.keys(): norm = self.wsp.arg(self.norm_rename_map[normname])
+                      if normname in self.norm_rename_map.keys(): norm = self.wsp.arg(self.norm_rename_map[normname])
                   if norm: 
                     if normname in self.DC.flatParamNuisances: 
                         self.DC.flatParamNuisances[normname] = False # don't warn if not found
-                        norm.setAttribute("flatParam")
+                        norm.setAttribute("flatParam")                        
                     norm.SetName("shape%s_%s_%s%s_norm" % (postFix,process,channel, "_"))
-		    self.norm_rename_map[normname]=norm.GetName()
+                    self.norm_rename_map[normname]=norm.GetName()
                     self.out._import(norm, ROOT.RooFit.RecycleConflictNodes()) 
+
                 if self.options.verbose > 2: print "import (%s,%s) -> %s\n" % (finalNames[0],objname,ret.GetName())
                 return ret;
             elif self.wsp.ClassName() == "TTree":

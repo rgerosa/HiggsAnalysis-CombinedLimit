@@ -31,12 +31,15 @@ class CombDataSetFactory : public TObject {
       RooDataHist *done(const char *name, const char *title) ;
       RooDataSet *doneUnbinned(const char *name, const char *title) ;
 
+      RooDataSet* getUB(const char* label){ return mapUB_[label]; };
+      
       ClassDef(CombDataSetFactory,1) // Make RooDataHist
 
     private:
         RooArgSet vars_;
         RooCategory *cat_;
         RooRealVar  *weight_;
+	std::map<std::string, bool > poissonWeightUB_;
         std::map<std::string, RooDataHist *> map_;
         std::map<std::string, RooDataSet *> mapUB_;
 };

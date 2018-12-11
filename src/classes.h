@@ -62,6 +62,7 @@
 #include "HiggsAnalysis/CombinedLimit/interface/RooFuncPdf.h"
 #include "HiggsAnalysis/CombinedLimit/interface/HMuMuRooPdfs.h"
 #include "HiggsAnalysis/CombinedLimit/interface/RooPdfIntegral.h"
+#include "HiggsAnalysis/CombinedLimit/interface/RooAbsPdfWithUncertainties.h"
 
 namespace {
     struct dictionary {
