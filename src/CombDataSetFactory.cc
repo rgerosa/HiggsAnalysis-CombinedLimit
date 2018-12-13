@@ -18,20 +18,10 @@ void CombDataSetFactory::addSetBin(const char *label, RooDataHist *set) {
 void CombDataSetFactory::addSetAny(const char *label, RooDataHist *set) {
 
   if (weight_ == 0) weight_ = new RooRealVar("_weight_","",1);
-  RooDataSet *data = new RooDataSet(TString(set->GetName())+"_unbin", "",RooArgSet(*set->get(),*weight_),"_weight_");
-  
+  RooDataSet *data = new RooDataSet(TString(set->GetName())+"_unbin", "",RooArgSet(*set->get(),*weight_),"_weight_");  
   for (int i = 0, n = set->numEntries(); i < n; ++i) {
     const RooArgSet *entry = set->get(i);      
-    if(set->isNonPoissonWeighted()){
-      double err_low, err_high;
-      set->weightError(err_low,err_high,RooAbsData::ErrorType::SumW2);
-      data->add(*entry,set->weight(),(err_high+err_low)/2);
-      poissonWeightUB_[label] = false;
-    }
-    else{
-      data->add(*entry,set->weight());
-      poissonWeightUB_[label] = false;
-    }
+    data->add(*entry,set->weight());
   }    
   mapUB_[label] = data;    
 }
@@ -81,13 +71,7 @@ RooDataSet *CombDataSetFactory::doneUnbinned(const char *name, const char *title
             RooDataSet *data = it->second;
             for (unsigned int i = 0, n = data->numEntries(); i < n; ++i) {
 	      varsPlusCat = *data->get(i);
-	      if(poissonWeightUB_[it->first])
-		ret->add(varsPlusCat, data->weight());
-	      else{
-		double err_low, err_high; 
-		data->weightError(err_low,err_high,RooAbsData::ErrorType::SumW2); 
-		ret->add(varsPlusCat,data->weight(),(err_high+err_low)/2);
-	      }
+	      ret->add(varsPlusCat, data->weight());
             }
         }
         //std::cout << "\n\n\n========== COMBINED DATASET =============" << std::endl;
